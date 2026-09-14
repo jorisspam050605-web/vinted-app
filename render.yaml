@@ -1,0 +1,46 @@
+# Blueprint Render : cree automatiquement le service web ET la base Postgres
+# quand tu cliques sur "New +" > "Blueprint" (ou via le bouton "Deploy to
+# Render") en pointant vers ce depot GitHub.
+databases:
+  - name: niches-db
+    plan: free
+    databaseName: niches
+    user: niches
+
+services:
+  - type: web
+    name: niches-app
+    runtime: node
+    plan: free
+    buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build
+    startCommand: npx prisma db push --skip-generate --accept-data-loss && npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: niches-db
+          property: connectionString
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      # A completer apres le premier deploiement avec l'URL reelle donnee
+      # par Render (ex: https://niches-app.onrender.com), voir le README.
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      # Optionnel : active la page Analyse IA si renseignee
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Optionnel : notifications email
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      # Optionnel : notifications Telegram
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false

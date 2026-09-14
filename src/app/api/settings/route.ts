@@ -12,23 +12,33 @@ const settingsSchema = z.object({
   notifyEmail: z.boolean().optional(),
   notifyTelegram: z.boolean().optional(),
   notifyDiscord: z.boolean().optional(),
+  notifyEmailTo: z.string().email().optional().or(z.literal("")),
+  telegramChatId: z.string().optional().or(z.literal("")),
+  discordWebhookUrl: z.string().url().optional().or(z.literal("")),
 });
 
-export async function GET() {
+async function getUserId() {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  return (session?.user as any)?.id as string | undefined;
+}
+
+export async function GET() {
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
 
   const settings = await prisma.settings.upsert({
-    where: { id: "singleton" },
+    where: { userId },
     update: {},
-    create: { id: "singleton" },
+    create: { userId },
   });
-  return NextResponse.json(settings);
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { webhookToken: true, email: true } });
+
+  return NextResponse.json({ ...settings, webhookToken: user?.webhookToken, email: user?.email });
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
 
   const body = await req.json();
   const parsed = settingsSchema.safeParse(body);
@@ -37,9 +47,9 @@ export async function PATCH(req: NextRequest) {
   }
 
   const settings = await prisma.settings.upsert({
-    where: { id: "singleton" },
+    where: { userId },
     update: parsed.data,
-    create: { id: "singleton", ...parsed.data },
+    create: { userId, ...parsed.data },
   });
   return NextResponse.json(settings);
 }

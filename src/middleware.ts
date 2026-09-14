@@ -9,5 +9,6 @@ export const config = {
     "/calculator/:path*",
     "/settings/:path*",
     "/ai/:path*",
+    "/share/:path*",
   ],
 };

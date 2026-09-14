@@ -27,7 +27,8 @@ const manualAddSchema = z.object({
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  const userId = (session?.user as any)?.id;
+  if (!userId) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const nicheId = searchParams.get("nicheId") ?? undefined;
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
 
   const opportunities = await prisma.opportunity.findMany({
     where: {
+      userId,
       nicheId: nicheId || undefined,
       status: (status as any) || undefined,
       brand: brand ? { contains: brand } : undefined,
@@ -51,11 +53,13 @@ export async function GET(req: NextRequest) {
 /**
  * Ajout manuel d'une opportunite (colle une annonce trouvee sur Vinted).
  * Si aucun nicheId n'est fourni, l'annonce est comparee a toutes les niches
- * actives et une opportunite est creee pour chaque niche qui matche.
+ * actives DE L'UTILISATEUR CONNECTE et une opportunite est creee pour chaque
+ * niche qui matche.
  */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  const userId = (session?.user as any)?.id;
+  if (!userId) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
 
   const body = await req.json();
   const parsed = manualAddSchema.safeParse(body);
@@ -63,7 +67,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const created = await ingestListing({ ...parsed.data, source: "manuel" });
+  const created = await ingestListing(userId, { ...parsed.data, source: "manuel" });
 
   if (created.length === 0) {
     return NextResponse.json(

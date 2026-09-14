@@ -26,9 +26,11 @@ const nicheSchema = z.object({
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  const userId = (session?.user as any)?.id;
+  if (!userId) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
 
   const niches = await prisma.niche.findMany({
+    where: { userId },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { opportunities: true } } },
   });
@@ -37,7 +39,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  const userId = (session?.user as any)?.id;
+  if (!userId) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
 
   const body = await req.json();
   const parsed = nicheSchema.safeParse(body);
@@ -45,6 +48,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const niche = await prisma.niche.create({ data: parsed.data });
+  const niche = await prisma.niche.create({ data: { ...parsed.data, userId } });
   return NextResponse.json(niche, { status: 201 });
 }

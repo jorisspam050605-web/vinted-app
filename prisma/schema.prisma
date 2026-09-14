@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -33,61 +33,80 @@ enum OpportunityStatus {
   NON_RENTABLE
 }
 
-enum NotificationChannel {
-  APP
-  EMAIL
-  TELEGRAM
-  DISCORD
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  webhookToken String   @unique @default(cuid()) // utilise pour /api/webhooks/watcher et le bookmarklet
+  createdAt    DateTime @default(now())
+
+  niches        Niche[]
+  opportunities Opportunity[]
+  settings      Settings?
 }
 
 model Niche {
   id                String        @id @default(cuid())
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
   name              String
-  brands            String        // liste separee par des virgules
+  brands            String
   category          String
-  keywords          String        // liste separee par des virgules
+  keywords          String
   size              String
   minCondition      Condition
   pricingMode       PricingMode
   maxBuyPrice       Float
-  targetResalePrice Float?        // utilise en mode FIXED
-  targetMultiplier  Float?        // utilise en mode MULTIPLIER
+  targetResalePrice Float?
+  targetMultiplier  Float?
   status            NicheStatus   @default(ACTIVE)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   opportunities     Opportunity[]
+
+  @@index([userId])
 }
 
 model Opportunity {
-  id                String            @id @default(cuid())
-  niche             Niche             @relation(fields: [nicheId], references: [id], onDelete: Cascade)
-  nicheId           String
-  title             String
-  brand             String?
-  price             Float
-  size              String?
-  condition         String?
-  photoUrl          String?
-  listingUrl        String
-  publishedAt       DateTime?
-  source            String            @default("manuel") // manuel | webhook | bookmarklet
-  estimatedResale   Float
-  estimatedMargin   Float
+  id                  String            @id @default(cuid())
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String
+  niche               Niche             @relation(fields: [nicheId], references: [id], onDelete: Cascade)
+  nicheId             String
+  title               String
+  brand               String?
+  price               Float
+  size                String?
+  condition           String?
+  photoUrl            String?
+  listingUrl          String
+  publishedAt         DateTime?
+  source              String            @default("manuel")
+  estimatedResale     Float
+  estimatedMargin     Float
   estimatedMultiplier Float
-  realSalePrice     Float?
-  status            OpportunityStatus @default(NOUVELLE)
-  detectedAt        DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  realSalePrice       Float?
+  status              OpportunityStatus @default(NOUVELLE)
+  detectedAt          DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([nicheId])
 }
 
 model Settings {
-  id                  String   @id @default("singleton")
-  packagingFee        Float    @default(0)
-  platformFeePercent  Float    @default(0)
-  miscFee             Float    @default(0)
-  notifyApp           Boolean  @default(true)
-  notifyEmail         Boolean  @default(false)
-  notifyTelegram      Boolean  @default(false)
-  notifyDiscord       Boolean  @default(false)
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String   @unique
+  packagingFee       Float    @default(0)
+  platformFeePercent Float    @default(0)
+  miscFee            Float    @default(0)
+  notifyApp          Boolean  @default(true)
+  notifyEmail        Boolean  @default(false)
+  notifyTelegram     Boolean  @default(false)
+  notifyDiscord      Boolean  @default(false)
+  notifyEmailTo      String?
+  telegramChatId     String?
+  discordWebhookUrl  String?
+  updatedAt          DateTime @updatedAt
 }

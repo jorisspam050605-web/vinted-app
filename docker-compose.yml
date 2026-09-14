@@ -1,12 +1,25 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=niches
+      - POSTGRES_PASSWORD=niches
+      - POSTGRES_DB=niches
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
   app:
     build: .
     ports:
       - "3000:3000"
     env_file:
       - .env
-    volumes:
-      - ./data:/app/data
     environment:
-      - DATABASE_URL=file:/app/data/prod.db
+      - DATABASE_URL=postgresql://niches:niches@db:5432/niches
+    depends_on:
+      - db
     restart: unless-stopped
+
+volumes:
+  dbdata:

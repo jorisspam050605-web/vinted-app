@@ -26,18 +26,26 @@ const updateSchema = z.object({
   status: z.enum(["ACTIVE", "PAUSED"]).optional(),
 });
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+async function getUserId() {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  return (session?.user as any)?.id as string | undefined;
+}
 
-  const niche = await prisma.niche.findUnique({ where: { id: params.id } });
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+
+  const niche = await prisma.niche.findFirst({ where: { id: params.id, userId } });
   if (!niche) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   return NextResponse.json(niche);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+
+  const owned = await prisma.niche.findFirst({ where: { id: params.id, userId } });
+  if (!owned) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
@@ -50,8 +58,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+
+  const owned = await prisma.niche.findFirst({ where: { id: params.id, userId } });
+  if (!owned) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
   await prisma.niche.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
