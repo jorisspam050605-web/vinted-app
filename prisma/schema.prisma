@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum PricingMode {
+  MULTIPLIER
+  FIXED
+}
+
+enum NicheStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum Condition {
+  NEUF_AVEC_ETIQUETTE
+  NEUF_SANS_ETIQUETTE
+  TRES_BON_ETAT
+  BON_ETAT
+  SATISFAISANT
+}
+
+enum OpportunityStatus {
+  NOUVELLE
+  IGNOREE
+  ACHETEE
+  REVENDUE
+  NON_RENTABLE
+}
+
+enum NotificationChannel {
+  APP
+  EMAIL
+  TELEGRAM
+  DISCORD
+}
+
+model Niche {
+  id                String        @id @default(cuid())
+  name              String
+  brands            String        // liste separee par des virgules
+  category          String
+  keywords          String        // liste separee par des virgules
+  size              String
+  minCondition      Condition
+  pricingMode       PricingMode
+  maxBuyPrice       Float
+  targetResalePrice Float?        // utilise en mode FIXED
+  targetMultiplier  Float?        // utilise en mode MULTIPLIER
+  status            NicheStatus   @default(ACTIVE)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  opportunities     Opportunity[]
+}
+
+model Opportunity {
+  id                String            @id @default(cuid())
+  niche             Niche             @relation(fields: [nicheId], references: [id], onDelete: Cascade)
+  nicheId           String
+  title             String
+  brand             String?
+  price             Float
+  size              String?
+  condition         String?
+  photoUrl          String?
+  listingUrl        String
+  publishedAt       DateTime?
+  source            String            @default("manuel") // manuel | webhook | bookmarklet
+  estimatedResale   Float
+  estimatedMargin   Float
+  estimatedMultiplier Float
+  realSalePrice     Float?
+  status            OpportunityStatus @default(NOUVELLE)
+  detectedAt        DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model Settings {
+  id                  String   @id @default("singleton")
+  packagingFee        Float    @default(0)
+  platformFeePercent  Float    @default(0)
+  miscFee             Float    @default(0)
+  notifyApp           Boolean  @default(true)
+  notifyEmail         Boolean  @default(false)
+  notifyTelegram      Boolean  @default(false)
+  notifyDiscord       Boolean  @default(false)
+  updatedAt           DateTime @updatedAt
+}
